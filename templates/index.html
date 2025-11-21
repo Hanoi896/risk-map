@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>글로벌 위험 정보 시각화</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="map"></div>
+
+  <button class="control-panel-toggle-button" id="control-panel-toggle-btn">
+    <span class="icon">⚙️</span> 컨트롤 패널
+  </button>
+
+  <div class="control-panel-wrapper">
+    <div class="control-panel">
+      <div class="panel-header">
+        <h3>컨트롤 패널</h3>
+        <button class="close-panel-btn" id="close-control-panel-btn">×</button>
+      </div>
+
+      <div class="panel-section">
+        <h4>데이터 레이어</h4>
+        <div class="layer-toggles">
+          <label class="toggle-switch-label">
+            {### EONET 체크박스에서 checked 속성 제거 ###}
+            <input type="checkbox" id="toggle-eonet"> 
+            <span class="slider round"></span> 🌋 자연재해 (EONET)
+          </label>
+          <label class="toggle-switch-label">
+            <input type="checkbox" id="toggle-gdacs">
+            <span class="slider round"></span> 📢 재난경보 (GDACS)
+          </label>
+          <label class="toggle-switch-label">
+            <input type="checkbox" id="toggle-disease">
+            <span class="slider round"></span> 🦠 질병발생
+          </label>
+        </div>
+      </div>
+      
+      <div class="panel-section eonet-filters">
+        <h4>EONET 필터</h4>
+        <label for="year-filter">📅 연도:</label>
+        <select id="year-filter" size="5">
+          <option value="">전체</option>
+          {% for year in range(current_year, 1959, -1) %}
+          <option value="{{ year }}">{{ year }}</option>
+          {% endfor %}
+        </select>
+
+        <label for="category-filter">📁 카테고리:</label>
+        <select id="category-filter">
+          <option value="">전체</option>
+          <optgroup label="지질 재해">
+            <option value="Earthquakes">지진</option>
+            <option value="Volcanoes">화산 폭발</option>
+            <option value="Landslides">산사태</option>
+          </optgroup>
+          <optgroup label="기상 재해">
+            <option value="Floods">홍수</option>
+            <option value="Severe Storms">심각한 폭풍</option>
+            <option value="Wildfires">산불</option>
+            <option value="Drought">가뭄</option>
+            <option value="Temperature Extremes">극한 기온</option>
+            <option value="Sea and Lake Ice">해빙/결빙</option>
+          </optgroup>
+          <optgroup label="환경/기타 재해">
+            <option value="Water Color">수질 오염/변색</option>
+            <option value="Dust and Haze">먼지/연무</option>
+            <option value="Manmade">인공 재해</option>
+          </optgroup>
+        </select>
+      </div>
+    </div>
+
+    <div class="legend-panel">
+      <div class="panel-header">
+        <h4>범례</h4>
+      </div>
+      <div class="legend-section">
+        <h5>EONET 위험도</h5>
+        <div class="legend-item"><span class="eonet-c5"></span> 90+ (매우 높음)</div>
+        <div class="legend-item"><span class="eonet-c4"></span> 70-89 (높음)</div>
+        <div class="legend-item"><span class="eonet-c3"></span> 50-69 (중간)</div>
+        <div class="legend-item"><span class="eonet-c2"></span> 30-49 (낮음)</div>
+        <div class="legend-item"><span class="eonet-c1"></span> 1-29 (매우 낮음)</div>
+        <div class="legend-item"><span class="eonet-c0"></span> 0 또는 없음</div>
+      </div>
+      
+      <div class="legend-section">
+        <h5>GDACS 경보</h5>
+        <div class="legend-item"><span class="gdacs-red"></span> Red (빨강)</div>
+        <div class="legend-item"><span class="gdacs-orange"></span> Orange (주황)</div>
+        <div class="legend-item"><span class="gdacs-green"></span> Green (초록)</div>
+        <div class="legend-item"><span class="gdacs-gray"></span> 기타/알 수 없음</div>
+      </div>
+
+      <div class="legend-section">
+        <h5>질병 발생</h5>
+        <div class="legend-item"><span class="disease-outbreak"></span> 발생 보고</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
