@@ -1,0 +1,68 @@
+{
+ "apis": [
+   {
+     "name": "GDACS",
+     "description": "지진, 홍수, 태풍 등 실시간 자연재해 정보 제공",
+     "url": "https://www.gdacs.org/",
+     "access": "No Auth (RSS/XML)",
+     "data_format": "XML",
+     "category": "Natural Disaster"
+   },
+   {
+     "name": "ACLED",
+     "description": "무력 충돌, 시위, 정치 폭력 등의 글로벌 사건 데이터",
+     "url": "https://acleddata.com/data-export-tool/",
+     "access": "Requires API Key (Free Signup)",
+     "data_format": "CSV / JSON",
+     "category": "Conflict / War"
+   },
+   {
+     "name": "ReliefWeb",
+     "description": "인도주의 위기 및 지원 정보 제공",
+     "url": "https://reliefweb.int/",
+     "access": "No Auth",
+     "data_format": "JSON",
+     "category": "Humanitarian Crisis"
+   },
+   {
+     "name": "NASA EONET",
+     "description": "전 세계 자연 현상 (화산, 산불 등)의 실시간 이벤트 정보",
+     "url": "https://eonet.gsfc.nasa.gov/api/v3/events",
+     "access": "No Auth",
+     "data_format": "JSON",
+     "category": "Natural Phenomenon"
+   },
+   {
+     "name": "World Bank Open Data",
+     "description": "세계 각국의 인구, 난민 수, 사망률 등 통계 데이터",
+     "url": "https://data.worldbank.org/",
+     "access": "No Auth",
+     "data_format": "JSON",
+     "category": "Statistical Data"
+   },
+   {
+     "name": "News API",
+     "description": "전 세계 주요 뉴스 기사 검색 및 요약 제공",
+     "url": "https://newsapi.org/",
+     "access": "ce649ab412ba472f90d966d3973dca2c",
+     "data_format": "JSON",
+     "category": "News"
+   },
+   {
+     "name": "AlertHub (CAP)",
+     "description": "국가별 긴급 재난 경보 수신 (Common Alerting Protocol)",
+     "url": "https://www.alert-hub.org/",
+     "access": "No Auth",
+     "data_format": "XML / JSON",
+     "category": "Emergency Alerts"
+   },
+   {
+     "name": "OpenStreetMap / Leaflet.js",
+     "description": "오픈소스 지도 시각화 라이브러리 및 데이터",
+     "url": "https://leafletjs.com/",
+     "access": "No Auth",
+     "data_format": "Tiles / JavaScript",
+     "category": "Map Visualization"
+   }
+ ]
+}
