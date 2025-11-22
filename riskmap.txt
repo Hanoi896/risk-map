@@ -1,0 +1,39 @@
+카테고리	출처/API	설명	인증 필요 여부
+🌪️ 자연재해	GDACS RSS	지진, 태풍, 홍수 등 재난 정보 (XML 형식)	❌ 없음
+🌋 자연현상	NASA EONET	산불, 화산, 허리케인 등 실시간 자연현상	❌ 없음
+🔥 산불 정보	Global Forest Watch Fires API (tiles only)	전 세계 산불 히트맵 (타일 지도형)	❌ 없음
+🦠 질병 현황	Disease.sh (병 데이터)	코로나, 독감, 사망률 등 국가별 질병 정보	❌ 없음
+📊 인구/국가 통계	REST Countries API	국가별 위치, 인구, 면적 등	❌ 없음
+🌍 기후/기상	Open-Meteo API	날씨, 온도, 풍속, 기온 등 예측	❌ 없음
+
+dlrisk-map-visualizer/
+│
+├── app.py                         # 🔁 Flask 서버 실행 메인 파일
+├── config.py                      # ⚙️ API 키, 경로 등 설정 파일
+├── requirements.txt               # 📦 필요한 패키지 목록
+│
+├── static/                        # 🎨 정적 자원 (CSS, JS, 아이콘 등)
+│   ├── css/
+│   │   └── style.css              # 💄 사용자 UI 디자인 스타일 시트
+│   └── js/
+│       ├── main.js                # 🧠 메인 로직: 지도 생성, 마커 표시
+│       ├── apiHandler.js          # 🔗 API 호출 모듈 (AJAX)
+│       └── utils.js               # 🧮 점수 계산, 필터링 함수 등 유틸
+│
+├── templates/                     # 🌐 HTML 템플릿 파일
+│   └── index.html                 # 🖥️ 메인 페이지
+│
+├── data/                          # 📊 API 데이터 저장/캐시용
+│   ├── gdacs_cache.json           # 재난 데이터 캐시 (GDACS)
+│   ├── acled_data.json            # 정치 불안 데이터
+│   └── eonet_data.json            # NASA 자연재해 데이터
+│
+├── modules/                       # 🧩 파이썬 처리 모듈
+│   ├── gdacs_fetcher.py           # GDACS 데이터 수집기
+│   ├── eonet_fetcher.py           # NASA 데이터 수집기
+│   ├── acled_fetcher.py           # ACLED CSV 파싱기
+│   ├── disease_fetcher.py         # 질병 현황 API 핸들러
+│   ├── weather_fetcher.py         # 기상 데이터 핸들러
+│   └── scorer.py                  # 위험 점수 계산기
+│
+└── README.md                      # 📘 프로젝트 설명 및 사용법
