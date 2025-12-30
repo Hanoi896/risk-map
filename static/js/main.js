@@ -6,6 +6,8 @@ import {
   getDiseaseData
 } from './apiHandler.js';
 
+import { loadRiskAnalysisLayer, removeRiskAnalysisLayer } from './riskLayer.js';
+
 const map = L.map('map').setView([20, 0], 2);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -262,4 +264,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (document.getElementById('toggle-gdacs')?.checked) loadAndDisplayGdacs(); 
   if (document.getElementById('toggle-disease')?.checked) loadAndDisplayDisease(); 
+  
+  // Risk Analysis Toggle
+  const toggleRiskBtn = document.getElementById('toggle-risk');
+  if (toggleRiskBtn) {
+      toggleRiskBtn.addEventListener('change', (e) => {
+          if (e.target.checked) {
+              loadRiskAnalysisLayer(map);
+          } else {
+              removeRiskAnalysisLayer(map);
+          }
+      });
+  }
 });

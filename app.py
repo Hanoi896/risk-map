@@ -13,6 +13,9 @@ from modules.weather_fetcher import get_weather_by_coords
 
 app = Flask(__name__)
 
+# scorer에서 함수 임포트
+from modules.scorer import calculate_danger_zones, score_event, CATEGORY_WEIGHTS
+
 def events_to_dict_list(events_from_db):
     """DB에서 가져온 Row 객체 리스트를 딕셔너리 리스트로 변환합니다."""
     if events_from_db is None:
@@ -129,9 +132,41 @@ def get_weather():
     weather_data = get_weather_by_coords(lat, lon)
     
     if "error" in weather_data: # weather_fetcher에서 오류 발생 시
-        return jsonify(weather_data), 500 # 또는 적절한 상태 코드
+        return jsonify(weather_data)
+
+@app.route("/api/risk-analysis")
+def get_risk_analysis():
+    conn = None
+    try:
+        conn = get_db_connection()
         
-    return jsonify(weather_data)
+        # 1. 모든 주요 이벤트 데이터 수집 (최근 데이터 위주)
+        # EONET
+        eonet_query = "SELECT id, title, category, date, score, longitude, latitude FROM eonet_events ORDER BY date DESC LIMIT 500"
+        eonet_events = events_to_dict_list(conn.execute(eonet_query).fetchall())
+        
+        # GDACS
+        gdacs_query = "SELECT id, title, category, date, longitude, latitude FROM gdacs_events ORDER BY date DESC LIMIT 300"
+        gdacs_events = events_to_dict_list(conn.execute(gdacs_query).fetchall())
+        
+        # Disease
+        disease_query = "SELECT id, title, category, date, longitude, latitude FROM disease_events ORDER BY date DESC LIMIT 200"
+        disease_events = events_to_dict_list(conn.execute(disease_query).fetchall())
+        
+        # 2. 데이터 통합
+        all_events = eonet_events + gdacs_events + disease_events
+        
+        # 3. 위험 구역 계산 (scorer.py 사용)
+        danger_zones = calculate_danger_zones(all_events)
+        
+        return jsonify(danger_zones)
+        
+    except Exception as e:
+        print(f"위험 분석 중 오류 발생: {e}")
+        return jsonify({"error": "위험 분석 데이터 처리 중 오류 발생"}), 500
+    finally:
+        if conn:
+            conn.close()
 
 # Flask 앱이 static 파일을 직접 제공하도록 설정
 @app.route('/static/<path:filename>')
