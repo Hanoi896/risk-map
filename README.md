@@ -156,84 +156,319 @@ python app.py
 
 ---
 
-## 🔬 알고리즘 상세 메커니즘
+## 🔬 AI 위험 분석 알고리즘: 완전 해부
 
-### Phase 1: 이벤트 스코어링 (Event Scoring)
+본 시스템의 핵심인 **PRAE (Predictive Risk Analytics Engine)**는 총 **4단계 파이프라인**으로 구성됩니다.
 
-각 재해 이벤트는 다음 공식으로 점수화됩니다:
+---
+
+### 🔢 Phase 0: 수학적 기초 - Haversine 거리 계산
+
+지리공간 클러스터링의 기반이 되는 **구면 거리 계산 공식**입니다.
+
+**Haversine Formula:**
+```
+d = 2R × arcsin(√(sin²(Δφ/2) + cos(φ₁) × cos(φ₂) × sin²(Δλ/2)))
+
+여기서:
+R  = 지구 반지름 (6371 km)
+φ  = 위도 (latitude)
+λ  = 경도 (longitude)
+Δφ = φ₂ - φ₁
+Δλ = λ₂ - λ₁
+```
+
+**Python 구현:**
+```python
+import math
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    R = 6371  # 지구 반지름 (km)
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    
+    a = (math.sin(dlat/2)**2 + 
+         math.cos(math.radians(lat1)) * 
+         math.cos(math.radians(lat2)) * 
+         math.sin(dlon/2)**2)
+    
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    return R * c
+```
+
+---
+
+### 📊 Phase 1: 이벤트 정규화 및 스코어링
+
+**1.1 카테고리 가중치 할당**
+
+각 재해 유형의 **평균적 인명/재산 피해 규모**를 기반으로 가중치를 설계했습니다.
+
+| 카테고리 | 가중치 | 근거 |
+|----------|--------|------|
+| Earthquakes | 90 | 대규모 구조물 붕괴, 2차 피해 (쓰나미) |
+| Volcanoes | 80 | 광범위 화산재, 용암 흐름 |
+| Wildfires | 70 | 급속 확산, 대기 오염 |
+| Drought | 65 | 장기 식량/물 부족 |
+| Floods | 60 | 침수 피해, 전염병 위험 |
+| Temperature Extremes | 55 | 열사병/동사 위험 |
+| Landslides | 50 | 국지적 매몰 |
+| Severe Storms | 40 | 단기 피해 |
+| Sea/Lake Ice | 30 | 항만 마비 |
+| Dust and Haze | 25 | 호흡기 질환 |
+| Water Color | 20 | 수질 오염 |
+| Manmade | 10 | 통제 가능 |
+
+**1.2 시간 감쇠 모델**
+
+**지수 감쇠 개념**을 단순화한 계단식 함수:
+
+```
+Recency_Bonus(t) = {
+    20,  if t ≤ 3   (days)
+    10,  if 3 < t ≤ 7
+    5,   if 7 < t ≤ 30
+    0,   if t > 30
+}
+
+여기서 t = 현재 시간 - 이벤트 발생 시간
+```
+
+**1.3 통합 스코어 함수**
 
 ```python
-Event_Score = Base_Weight + Recency_Bonus
+def score_event(event):
+    # Step 1: 카테고리 점수
+    category = event.get('category', '')
+    base_score = CATEGORY_WEIGHTS.get(category, 20)
+    
+    # Step 2: 시간 계산
+    event_date = datetime.fromisoformat(event['date'])
+    now = datetime.now(timezone.utc)
+    days_diff = (now - event_date).days
+    
+    # Step 3: 감쇠 보너스
+    if days_diff <= 3:
+        bonus = 20
+    elif days_diff <= 7:
+        bonus = 10
+    elif days_diff <= 30:
+        bonus = 5
+    else:
+        bonus = 0
+    
+    # Step 4: 최종 점수
+    final_score = max(0, base_score + bonus)
+    return final_score
 ```
 
-**Base Weight 매트릭스:**
+**예시 시나리오:**
 ```
-Earthquakes      : 90   # 가장 높은 위험도
-Volcanoes        : 80
-Wildfires        : 70
-Drought          : 65
-Floods           : 60
-Temperature Ext. : 55
-Landslides       : 50
-Severe Storms    : 40
-Dust and Haze    : 25
-Default          : 20
-```
+[시나리오 1] 오늘 발생한 규모 7.5 지진
+→ 90 (Earthquakes) + 20 (0일) = 110점
 
-**Recency Bonus (시간 감쇠):**
-```
-현재로부터 3일 이내   : +20점
-현재로부터 7일 이내   : +10점
-현재로부터 30일 이내  : +5점
-30일 초과            : 0점
-```
+[시나리오 2] 5일 전 산불 발생
+→ 70 (Wildfires) + 10 (5일) = 80점
 
-**예시 계산:**
-- 2일 전 발생한 지진 → 90 (Base) + 20 (Recency) = **110점**
-- 15일 전 발생한 홍수 → 60 (Base) + 0 = **60점**
+[시나리오 3] 한 달 전 폭풍
+→ 40 (Severe Storms) + 0 (30일+) = 40점
+```
 
 ---
 
-### Phase 2: 공간 집계 (Spatial Aggregation)
+### 🗺️ Phase 2: 공간 집계 (Grid-Based Clustering)
 
-**그리드 기반 클러스터링:**
-1. 전 세계를 **5도 × 5도 격자**로 분할
-   - 위도 5도 ≈ 약 555km
-   - 적도 기준 경도 5도 ≈ 약 555km
+**2.1 좌표 → 격자셀 변환**
 
-2. 각 격자 셀에 속한 모든 이벤트의 점수를 **합산**
-   ```
-   Grid_Risk_Score = Σ(Event_Score_i)
-   ```
+**격자 인덱스 계산:**
+```python
+GRID_SIZE = 5  # degrees
 
-3. 격자 내 이벤트 좌표의 **무게중심(Centroid)** 계산
-   ```
-   Centroid_Lat = Σ(lat_i) / n
-   Centroid_Lon = Σ(lon_i) / n
-   ```
+def get_grid_cell(lat, lon):
+    grid_lat = int(lat / GRID_SIZE)
+    grid_lon = int(lon / GRID_SIZE)
+    return (grid_lat, grid_lon)
+
+# 예시
+event_tokyo = {"lat": 35.68, "lon": 139.69}
+cell = get_grid_cell(35.68, 139.69)
+# → (7, 27)  # 격자 좌표
+```
+
+**격자 크기 실제 거리:**
+```
+위도 5° ≈ 5 × 111 km = 555 km (일정)
+경도 5° ≈ 5 × 111 × cos(위도) km
+  - 적도(0°): 555 km
+  - 서울(37°): 443 km
+  - 극지(80°): 96 km
+```
+
+**2.2 집계 알고리즘**
+
+```python
+def calculate_danger_zones(events):
+    grid_map = {}  # {(grid_lat, grid_lon): 집계 데이터}
+    
+    # Step 1: 이벤트를 격자에 할당
+    for event in events:
+        lat, lon = event['latitude'], event['longitude']
+        cell = get_grid_cell(lat, lon)
+        score = score_event(event)
+        
+        if cell not in grid_map:
+            grid_map[cell] = {
+                'total_score': 0,
+                'count': 0,
+                'lat_sum': 0.0,
+                'lon_sum': 0.0,
+                'events': []
+            }
+        
+        # 점수 합산
+        grid_map[cell]['total_score'] += score
+        grid_map[cell]['count'] += 1
+        grid_map[cell]['lat_sum'] += lat
+        grid_map[cell]['lon_sum'] += lon
+        
+        # 대표 이벤트 저장 (최대 3개)
+        if len(grid_map[cell]['events']) < 3:
+            grid_map[cell]['events'].append(event['title'])
+    
+    # Step 2: 무게중심 계산
+    results = []
+    for cell, data in grid_map.items():
+        if data['total_score'] < 30:  # 노이즈 제거
+            continue
+        
+        # 무게중심 좌표
+        centroid_lat = data['lat_sum'] / data['count']
+        centroid_lon = data['lon_sum'] / data['count']
+        
+        # 위험 등급 분류
+        score = data['total_score']
+        if score > 300:
+            level = "DeepRed"
+        elif score > 150:
+            level = "High"
+        elif score > 80:
+            level = "Medium"
+        else:
+            level = "Low"
+        
+        results.append({
+            'latitude': round(centroid_lat, 2),
+            'longitude': round(centroid_lon, 2),
+            'risk_score': score,
+            'event_count': data['count'],
+            'risk_level': level,
+            'representative_events': data['events']
+        })
+    
+    return results
+```
+
+**2.3 무게중심 (Centroid) 계산 원리**
+
+점수를 고려하지 않은 **산술 평균 중심점**:
+
+```
+C_lat = (Σ lat_i) / n
+C_lon = (Σ lon_i) / n
+
+예시: 격자 내 3개 지진
+- 지진1: (35.7, 139.8)
+- 지진2: (35.6, 139.7)
+- 지진3: (35.5, 140.0)
+
+C_lat = (35.7 + 35.6 + 35.5) / 3 = 35.6
+C_lon = (139.8 + 139.7 + 140.0) / 3 = 139.83
+```
+
+**향후 개선 방향**: 점수 가중 평균 (Weighted Centroid)
+```
+C_lat = Σ(score_i × lat_i) / Σ(score_i)
+```
 
 ---
 
-### Phase 3: 필터링 및 정규화
+### 🎯 Phase 3: 위험 등급 분류
 
-**노이즈 제거:**
-- 점수가 30점 미만인 격자는 제외 (단일 저위험 이벤트 필터링)
+**분류 기준 설계 근거:**
 
-**결과 출력:**
+| 등급 | 점수 | 시나리오 예시 |
+|------|------|---------------|
+| 🔴 **Critical** | 300+ | 3개 이상의 대규모 재해 동시 발생<br>(지진 110 + 화산 100 + 홍수 80 = 290+) |
+| 🔴 **High** | 150+ | 2개의 주요 재해 중첩<br>(지진 110 + 산불 80 = 190) |
+| 🟠 **Moderate** | 80+ | 1개의 최근 주요 재해<br>(지진 90 + 보너스 10 = 100) |
+| 🟡 **Monitor** | 30+ | 복수의 경미한 재해 또는 단일 저위험 이벤트 |
+
+---
+
+### 🧮 Phase 4: 출력 정규화 및 API 응답
+
+**최종 출력 형식:**
 ```json
-{
-  "latitude": 35.68,
-  "longitude": 139.69,
-  "risk_score": 245,
-  "event_count": 8,
-  "risk_level": "High",
-  "representative_events": [
-    "Earthquake M6.8 near Tokyo",
-    "Volcanic activity detected",
-    "Flood alert issued"
-  ]
-}
+[
+  {
+    "latitude": 35.68,
+    "longitude": 139.69,
+    "risk_score": 320,
+    "event_count": 12,
+    "risk_level": "DeepRed",
+    "radius_km": 500,
+    "representative_events": [
+      "Earthquake M7.2 near Tokyo",
+      "Volcanic eruption Mt. Fuji",
+      "Severe flooding in Kanto"
+    ]
+  }
+]
 ```
+
+---
+
+### ⚡ 성능 최적화 전략
+
+**시간 복잡도:**
+```
+O(n) + O(m) = O(n + m)
+
+n = 전체 이벤트 수
+m = 고유 격자셀 수 (최대 64,800개 = 360°/5° × 180°/5°)
+```
+
+**공간 복잡도:**
+```
+O(m) ≈ O(격자 수)
+실제로는 데이터가 있는 셀만 저장 (희소 행렬)
+```
+
+**데이터베이스 쿼리 최적화:**
+```sql
+-- app.py에서 실행되는 쿼리
+SELECT id, title, category, date, longitude, latitude 
+FROM eonet_events 
+ORDER BY date DESC 
+LIMIT 500
+```
+→ 최신 500개만 분석하여 응답 시간 < 1초 보장
+
+---
+
+### 🔮 알고리즘 확장 가능성
+
+**현재 (v1.0):**
+- 격자 기반 집계
+- 규칙 기반 점수화
+- 시간 감쇠 (계단 함수)
+
+**향후 개선 방향 (v2.0):**
+1. **DBSCAN 클러스터링**: 가변 크기 클러스터 지원
+2. **가중치 학습**: 과거 피해 데이터 기반 ML 최적화
+3. **시간 감쇠 개선**: 지수 함수 또는 시그모이드 적용
+4. **재해 간 상관관계**: 지진 → 쓰나미 연쇄 반응 모델링
+5. **인구 밀도 가중치**: 피해 예상 규모 정밀화
 
 ---
 
@@ -242,7 +477,8 @@ Default          : 20
 ✅ **투명성**: 블랙박스 ML이 아닌 해석 가능한 규칙 기반  
 ✅ **실시간성**: 데이터베이스 쿼리 후 즉시 계산 (< 1초)  
 ✅ **확장성**: 격자 크기/가중치 조정으로 민감도 제어 가능  
-✅ **경량화**: 외부 AI 서비스 의존 없이 로컬에서 완결
+✅ **경량화**: 외부 AI 서비스 의존 없이 로컬에서 완결  
+✅ **검증 가능성**: 모든 파라미터와 로직이 문서화되어 재현 가능
 
 ---
 
